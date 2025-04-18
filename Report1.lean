@@ -85,6 +85,7 @@ lemma compl_mem {A} (h : A ∈ F S) : (S \ A) ∈ F S := by
       -- Goal は S \ A ⊆ S.
       intro x
       intro
+      -- Goal x ∈ S.
       aesop
 
   ·
@@ -98,22 +99,132 @@ lemma compl_mem {A} (h : A ∈ F S) : (S \ A) ∈ F S := by
       -- GOal: S \ A ⊆ S
       intro x
       intro
+      -- Goal: x ∈ S
       aesop
 
 
 lemma Union_mem {f : ℕ → Set α} (h : ∀ n, f n ∈ F S) : (⋃ n, f n) ∈ F S := by
-  by_cases H : (⋃ n, f n).Countable
-  · left; exact H
-  · right
-    calc
-      S \ ⋃ n, f n = ⋂ n, (S \ f n) := by simp [compl_Union]
-      _ = ⋂ n, (S \ f n) : rfl
-    -- 交わり側の可算性は各 S\f n が可算なことから
-    have h' : ∀ n, (S \ f n).Countable := fun n =>
-      (h n).elim (fun _ => by simpa [compl_compl] using (h n).elim id fun _ => by rfl)
-                 fun c => c
-    exact Countable.countable_iInter h'
-    -- (Countable.countable_iInter は Mathlib4 で補題を探すか、自分でそっくり構成してください)
+  -- Goal: ∪ n, f n ∈ F S
+  -- h: ∀ (n : ℕ), f n ∈ F S
+  rewrite [F] at h
+  rewrite [F]
+  -- h: ∀ (n : ℕ), f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
+
+  -- h の右側だけとっておく
+  have hr : ∀ (n: ℕ), f n ⊆ S := by
+    intro n
+    -- #check h n -- h n : f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
+    -- #check (h n).2 -- (h n).right : f n ⊆ S
+
+    exact (h n).2
+
+  have hl: ∀ (n: ℕ), (f n).Countable ∨ (S \ f n).Countable := by
+    intro n
+    exact (h n).1
+
+
+  -- Goal: ⋃ n, f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
+  -- ⋃ n, f nってなんやねん。 iUnionとかいうらしいが…
+  rewrite [mem_setOf_eq]
+  rewrite [diff_iUnion]
+
+  -- Goal: ((⋃ n, f n).Countable ∨ (⋂ i, S \ f i).Countable) ∧ ⋃ n, f n ⊆ S
+
+  constructor
+  ·
+    -- left.
+    -- Goal: (⋃ n, f n).Countable ∨ (⋂ i, S \ f i).Countable
+    -- 一つでも S \ f i が Countableならば、 ⋂ i, S \ f iも同様にCountable.
+    -- すべての S \ f i がCountableでないときは?
+
+    by_cases existed_diff_countable: ∃ i, (S \ f i).Countable
+    ·
+      -- existed_diff_countable: ∃ i, (S \ f i).Countable
+      obtain ⟨i, hi⟩ := existed_diff_countable
+      -- h: (S \ f i).Countable
+      right
+      -- Goal: (⋂ i, S \ f i).Countable
+      -- さすがに (⋂ i, S \ f i) ⊆ (S \ f i)
+      have h2: (⋂ i, S \ f i) ⊆ (S \ f i) := by
+        intro x
+        intro h3
+        rewrite [mem_iInter] at h3
+        -- h3: ∀ (i : ℕ), x ∈ S \ f i
+        -- Use specialize to get the specific instance for our i
+        specialize h3 i
+        -- h3: x ∈ S \ f i
+        exact h3
+
+      -- A ⊆ B, B.Countableならば A.Countable
+      -- という定理であるところのSet.Countable.monoを使う
+      exact Set.Countable.mono h2 hi
+
+      -- Goal: (⋂ i, S \ f i).Countable
+    ·
+      -- existed_diff_countable: ¬ ∃ i, (S \ f i).Countable
+      push_neg at existed_diff_countable
+      -- existed_diff_countable: ∀ (i : ℕ), ¬ (S \ f i).Countable
+      -- Goal: (⋃ n, f n).Countable ∨ (⋂ i, S \ f i).Countable
+
+      -- どうやって証明すればいいんだろう。
+      -- aesopで終わったｗ
+      aesop
+
+  ·
+    -- right
+    -- Goal: ⋃ n, f n ⊆ S
+    intro x
+    intro hx
+    -- Goal: x ∈ ⋃ n, f n
+    rewrite [mem_iUnion] at hx
+    -- hx: ∃ i, x ∈ f i
+    obtain ⟨i, hx⟩ := hx
+    -- hx: x ∈ f i
+    -- #check hr i -- hr i : f i ⊆ S
+    exact (hr i) hx
+    -- Goal: x ∈ S
+
+  /-
+  by_cases h1: (⋃ n, f n).Countable
+  ·
+    -- h1: (⋃ n, f n).Countable)
+    rewrite [mem_setOf]
+    have h2: (⋃ n, f n) ⊆ S := by
+      aesop
+
+      -- Goal: x ∈ S
+
+    exact And.intro (Or.inl h1) (h2)
+  ·
+    -- h1: ¬(⋃ n, f n).Countable
+    -- とりあえずド・モルガンをしていきたい
+    simp [mem_setOf_eq] at h1
+    -- h1: ∃ x, ¬(f x).Countable
+    -- Goal: ⋃ n, f n ∈ F S
+    -- Goal: ⋃ n, f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
+
+    simp [mem_setOf_eq]
+
+    -- Goal: ((∀ (i : ℕ), (f i).Countable) ∨ (S \ ⋃ n, f n).Countable) ∧ ∀ (i : ℕ), f i ⊆ S
+    -- ∧ の左側と右側に分けて証明する。
+    constructor
+    -- 左側
+    ·
+      -- goal: (∀ (i : ℕ ), (f i).Countable) ∨ (S \ ⋃ n, f n).Countable
+      -- (S \ ⋃ n, f n)を書き換えたい
+      -- ⋃ ってなんだよ iUnionって言うらしい
+
+      sorry
+    ·
+      -- Goal: ∀ (i : ℕ), f i ⊆ S
+      intro i
+      -- Goal: f i ⊆ S
+      exact hr i
+    sorry
+  -- Goal: ∪ n, f n ∈ F S
+  sorry
+  -/
+
 end sigmaAlgebra
 
 /-- (2) 有限集合族が生成する σ-加法族に他ならない -/
