@@ -168,64 +168,20 @@ lemma Union_mem {f : ℕ → Set α} (h : ∀ n, f n ∈ F S) : (⋃ n, f n) ∈
 
       -- どうやって証明すればいいんだろう。
       -- aesopで終わったｗ
+
       aesop
 
   ·
-    -- right
-    -- Goal: ⋃ n, f n ⊆ S
-    intro x
-    intro hx
-    -- Goal: x ∈ ⋃ n, f n
-    rewrite [mem_iUnion] at hx
-    -- hx: ∃ i, x ∈ f i
-    obtain ⟨i, hx⟩ := hx
-    -- hx: x ∈ f i
-    -- #check hr i -- hr i : f i ⊆ S
-    exact (hr i) hx
-    -- Goal: x ∈ S
+    rewrite [iUnion_subset_iff]
+    exact hr
 
-  /-
-  by_cases h1: (⋃ n, f n).Countable
-  ·
-    -- h1: (⋃ n, f n).Countable)
-    rewrite [mem_setOf]
-    have h2: (⋃ n, f n) ⊆ S := by
-      aesop
 
-      -- Goal: x ∈ S
+-- F は σ-加法族であることを、今まで示したlemmaから主張する
 
-    exact And.intro (Or.inl h1) (h2)
-  ·
-    -- h1: ¬(⋃ n, f n).Countable
-    -- とりあえずド・モルガンをしていきたい
-    simp [mem_setOf_eq] at h1
-    -- h1: ∃ x, ¬(f x).Countable
-    -- Goal: ⋃ n, f n ∈ F S
-    -- Goal: ⋃ n, f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
 
-    simp [mem_setOf_eq]
-
-    -- Goal: ((∀ (i : ℕ), (f i).Countable) ∨ (S \ ⋃ n, f n).Countable) ∧ ∀ (i : ℕ), f i ⊆ S
-    -- ∧ の左側と右側に分けて証明する。
-    constructor
-    -- 左側
-    ·
-      -- goal: (∀ (i : ℕ ), (f i).Countable) ∨ (S \ ⋃ n, f n).Countable
-      -- (S \ ⋃ n, f n)を書き換えたい
-      -- ⋃ ってなんだよ iUnionって言うらしい
-
-      sorry
-    ·
-      -- Goal: ∀ (i : ℕ), f i ⊆ S
-      intro i
-      -- Goal: f i ⊆ S
-      exact hr i
-    sorry
-  -- Goal: ∪ n, f n ∈ F S
-  sorry
-  -/
 
 end sigmaAlgebra
+
 
 /-- (2) 有限集合族が生成する σ-加法族に他ならない -/
 section generatedByFinite
