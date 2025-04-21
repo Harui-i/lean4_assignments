@@ -100,7 +100,9 @@ lemma Union_mem {f : ℕ → Set α} (h : ∀ n, f n ∈ F) : (⋃ n, f n) ∈ F
   case pos =>
     -- hAll_countable:
     -- 可算個の集合の可算無限和は可算
-    aesop
+    left
+    rewrite [countable_iUnion_iff]
+    exact hAll_countable
   case neg =>
     right -- Goal: (⋂ i, (f i)ᶜ).Countable
     push_neg at hAll_countable

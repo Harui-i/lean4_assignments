@@ -15,33 +15,26 @@ namespace Report1
 
 /-- F の定義 -/
 def F : Set (Set α) :=
-  { A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S }
+  { A | A.Countable ∨ (Aᶜ).Countable }
 
 -- (1) σ-加法族性
 section sigmaAlgebra
 open Set
 
 -- 空集合が F に含まれることを示す
-lemma empty_mem : (∅ : Set α) ∈ F S := by
+lemma empty_mem : (∅: Set α) ∈ F := by
   -- Goalは ∅ ∈ F S.
   -- ∈ F Sってなんだよ。
   -- Fは上で定義されている。
 
-  --#check S -- S : Set α
-  --#check F S -- F S : Set (Set α)
-  --#check F -- Report1.F.{u_1} {α : Type u_1} (S: Set α) : Set (Set α)
   rewrite [F]
-  have h1: ∅ ⊆ S := by
-    exact empty_subset S
-
-  have h2 : (∅: Set α).Countable := by
-    exact countable_empty
-
-  exact And.intro (Or.inl h2) h1
+  left
+  exact countable_empty
 
 
 -- 全体集合が F に含まれることを示す
-lemma univ_mem : (S : Set α) ∈ F S := by
+/-
+lemma univ_mem : (S : Set α) ∈ F := by
   -- Goalは S ∈ F S.
   constructor
   ·
@@ -55,135 +48,101 @@ lemma univ_mem : (S : Set α) ∈ F S := by
   ·
     -- Goalは S ⊆ S
     exact Subset.refl S
+-/
 
--- S \ A も F に含まれることを示す
-lemma compl_mem {A} (h : A ∈ F S) : (S \ A) ∈ F S := by
+
+-- Aᶜ も F に含まれることを示す
+lemma compl_mem {A: Set α} (h : A ∈ F) : (Aᶜ) ∈ F := by
   -- h : A ∈ F S
   rewrite [F] at h
-  have hl : A.Countable ∨ (S \ A).Countable := h.1
-  have hr : A ⊆ S := h.2
-
   -- Goalは A ∈ {A | A.Countable ∨ (S \ A).Countable}
 
-  rcases hl with h1 | h2
+  rcases h with h1 | h2
 
-  · -- A.Countable ∨ (S \ A).Countable--
-    -- Goalは S \ A ∈ F S
+  -- A.Countable と Aᶜ.Countableで場合分け
+  ·
+    -- h1: A.Countable
+    -- Goalは Aᶜ ∈ F
     rewrite [F]
-    -- Goal は S \ A ∈ {A | A.Countable ∨ (S \ A).Countable}
-    -- (S \ A) \ A = A.　ここで、 (S \ A) \ A がCountableだから、
-    -- (S \ A) \in F S
-    apply And.intro
-    ·
-      right
-      rewrite [diff_diff_cancel_left]
-      ·
-        exact h1
-      ·
-        exact hr
-    ·
-      -- Goal は S \ A ⊆ S.
-      intro x
-      intro
-      -- Goal x ∈ S.
-      aesop
+    -- Goal は Aᶜ ∈ {A | A.Countable ∨ (S \ A).Countable}
+    -- (Aᶜ)ᶜ = A.　ここで、 Aᶜᶜ がCountableだから、
+    -- Aᶜ ∈ F.
+    have h3: (Aᶜ)ᶜ.Countable := by
+      -- Goalは A.Countable
+      rewrite [compl_compl]
+      exact h1
+
+    right
+    -- Goal: Aᶜᶜ.Countable
+    exact h3
 
   ·
-    -- Goal: S \ A ∈ F S
+    -- Goal: Aᶜ ∈ F
+    -- h2: Aᶜ.Countable
     rewrite [F]
-    constructor
-    ·
-      -- Goal: (S \ A).Countable ∨ (S \ (S \ A)).Countable
-      exact Or.inl h2
-    ·
-      -- GOal: S \ A ⊆ S
-      intro x
-      intro
-      -- Goal: x ∈ S
-      aesop
+    left
+    exact h2
 
 
-lemma Union_mem {f : ℕ → Set α} (h : ∀ n, f n ∈ F S) : (⋃ n, f n) ∈ F S := by
-  -- Goal: ∪ n, f n ∈ F S
-  -- h: ∀ (n : ℕ), f n ∈ F S
+lemma Union_mem {f : ℕ → Set α} (h : ∀ n, f n ∈ F) : (⋃ n, f n) ∈ F := by
+  -- Goal: ⋃ n, f n ∈ F
+  -- h: ∀( n: ℕ), f n ∈ F
   rewrite [F] at h
   rewrite [F]
-  -- h: ∀ (n : ℕ), f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
+  -- h: ∀ (n : ℕ), f n ∈ {A | (A.Countable ∨ Aᶜ.Countable) }
 
   -- h の右側だけとっておく
-  have hr : ∀ (n: ℕ), f n ⊆ S := by
-    intro n
-    -- #check h n -- h n : f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
-    -- #check (h n).2 -- (h n).right : f n ⊆ S
 
-    exact (h n).2
-
-  have hl: ∀ (n: ℕ), (f n).Countable ∨ (S \ f n).Countable := by
-    intro n
-    exact (h n).1
-
-
-  -- Goal: ⋃ n, f n ∈ {A | (A.Countable ∨ (S \ A).Countable) ∧ A ⊆ S}
+  -- Goal: ⋃ n, f n ∈ {A | A.Countable ∨ (Aᶜ).Countable }
   -- ⋃ n, f nってなんやねん。 iUnionとかいうらしいが…
   rewrite [mem_setOf_eq]
-  rewrite [diff_iUnion]
+  rewrite [compl_iUnion]
+  -- Goal: ((⋃ n, f n).Countable ∨ (⋂ i, (f i)ᶜ).Countable)
 
-  -- Goal: ((⋃ n, f n).Countable ∨ (⋂ i, S \ f i).Countable) ∧ ⋃ n, f n ⊆ S
+  by_cases hAll_countable: ∀ n, (f n).Countable
+  case pos =>
+    -- hAll_countable:
+    -- 可算個の集合の可算無限和は可算
+    aesop
+  case neg =>
+    right -- Goal: (⋂ i, (f i)ᶜ).Countable
+    push_neg at hAll_countable
+    -- hAll_countable: ∃ n, ¬(f n).Countable
+    obtain ⟨n1, hN⟩ := hAll_countable
 
-  constructor
-  ·
-    -- left.
-    -- Goal: (⋃ n, f n).Countable ∨ (⋂ i, S \ f i).Countable
-    -- 一つでも S \ f i が Countableならば、 ⋂ i, S \ f iも同様にCountable.
-    -- すべての S \ f i がCountableでないときは?
+    have hn1: f n1 ∈ {A | A.Countable ∨ (Aᶜ).Countable } := by
+      -- Goal: f n ∈ {A | A.Countable ∨ (Aᶜ).Countable }
+      -- h: ∀ (n : ℕ), f n ∈ {A | A.Countable ∨ (Aᶜ).Countable }
+      exact h n1
 
-    by_cases existed_diff_countable: ∃ i, (S \ f i).Countable
-    ·
-      -- existed_diff_countable: ∃ i, (S \ f i).Countable
-      obtain ⟨i, hi⟩ := existed_diff_countable
-      -- h: (S \ f i).Countable
-      right
-      -- Goal: (⋂ i, S \ f i).Countable
-      -- さすがに (⋂ i, S \ f i) ⊆ (S \ f i)
-      have h2: (⋂ i, S \ f i) ⊆ (S \ f i) := by
-        intro x
-        intro h3
-        rewrite [mem_iInter] at h3
-        -- h3: ∀ (i : ℕ), x ∈ S \ f i
-        -- Use specialize to get the specific instance for our i
-        specialize h3 i
-        -- h3: x ∈ S \ f i
-        exact h3
+    rewrite [mem_setOf_eq] at hn1
 
-      -- A ⊆ B, B.Countableならば A.Countable
-      -- という定理であるところのSet.Countable.monoを使う
-      exact Set.Countable.mono h2 hi
+    have h2: ((f n1)ᶜ).Countable := by
+      exact Or.resolve_left hn1 hN
 
-      -- Goal: (⋂ i, S \ f i).Countable
-    ·
-      -- existed_diff_countable: ¬ ∃ i, (S \ f i).Countable
-      push_neg at existed_diff_countable
-      -- existed_diff_countable: ∀ (i : ℕ), ¬ (S \ f i).Countable
-      -- Goal: (⋃ n, f n).Countable ∨ (⋂ i, S \ f i).Countable
+    have h3: (⋂ i, (f i)ᶜ) ⊆ (f n1)ᶜ := by
+      intro x
+      intro h4
+      -- h4: x ∈ ⋂ i, (f i)ᶜ
+      -- Goal: x ∈ (f n1)ᶜ
+      rewrite [mem_iInter] at h4
+      exact h4 n1
 
-      -- どうやって証明すればいいんだろう。
-      -- aesopで終わったｗ
+    exact Set.Countable.mono h3 h2
 
-      aesop
+-- (S, F)が可測空間であることを今まで示したlemmaから主張する
 
-  ·
-    rewrite [iUnion_subset_iff]
-    exact hr
-
-
--- F は σ-加法族であることを、今まで示したlemmaから主張する
-
-
+instance F_sigmaAlgebra: MeasurableSpace α where
+  MeasurableSet' := fun A => A ∈ F
+  measurableSet_empty := empty_mem
+  measurableSet_compl := fun _A hA => compl_mem hA
+  measurableSet_iUnion := fun _f hf => Union_mem hf
 
 end sigmaAlgebra
 
 
-/-- (2) 有限集合族が生成する σ-加法族に他ならない -/
+-- (2) 有限集合族が生成する σ-加法族に他ならない
+
 section generatedByFinite
 open MeasurableSpace
 
