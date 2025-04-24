@@ -7,7 +7,7 @@ import Mathlib.MeasureTheory.MeasurableSpace.Defs
 レポート問題 No.1
 S : 集合、F = { A ⊆ S | A は可算 ∨ S \ A は可算 }
 (1) F が σ-加法族である
-(2) 有限部分集合族が生成する σ-加法族に他ならない
+(2) Fは有限部分集合族が生成する σ-加法族に他ならない
 -/
 variable {α : Type*} (S : Set α)
 
@@ -143,33 +143,57 @@ end sigmaAlgebra
 
 -- (2) 有限集合族が生成する σ-加法族に他ならない
 
+-- filepath: /home/harui/math/learn_lean/anlysis3/Report1.lean
 section generatedByFinite
-open MeasurableSpace
+open MeasurableSpace Set
 
-/-- Finset α → Set α の像で生成 -/
-def G : MeasurableSpace α := generateFrom (Set.range fun t : Finset α => (t : Set α))
+-- our generating family: all finite subsets of α
+def gen : Set (Set α) := { s | s.Finite }
 
-lemma finset_mem (t : Finset α) : (↑t : Set α) ∈ F S := by
-  -- 有限集合は可算
-  left; exact t.finite_toSet.countable
+-- ① generateFrom gen ⊆ F_sigmaAlgebra
+lemma gen_le_F : generateFrom gen ≤ F_sigmaAlgebra := by
+  apply generateFrom_le; rintro s hs; dsimp [gen]
+  -- a finite set is countable
+  change s ∈ F; left; exact hs.countable
 
-lemma G_le_F : G ≤ (MeasurableSpace.mkOfClosure _ rfl : MeasurableSpace α) := by
-  -- generateFrom_le を使って G ≤ F になる
-  refine generateFrom_le ?_; intro t ht
-  rcases ht with ⟨u, rfl⟩
-  exact finset_mem S u
+-- ② F_sigmaAlgebra ⊆ generateFrom gen
+lemma F_le_gen : F_sigmaAlgebra ≤ generateFrom gen := by
+  intro s hs; dsimp [MeasurableSet, gen] at hs ⊢
+  rcases hs with hc | hcc
+  · -- case s.Countable
+    rcases eq_empty_or_nonempty s with rfl | ⟨x, hx⟩
+    · -- s = ∅
+      exact GenerateMeasurable.empty
+    · -- enumerate s by a surjection e : ℕ ↠ {y // y ∈ s}
+      rcases exists_surjective_nat { y // y ∈ s } ⟨⟨x,hx⟩⟩ with ⟨e, he⟩
+      let f : ℕ → Set α := fun n => {(e n).val}
+      have hf : ∀ n, f n ∈ gen := by intro n; dsimp [gen]; exact Set.Finite.singleton _
+      -- ⋃ n, {e n} = s
+      have : (⋃ n, f n) = s := by
+        ext y; constructor
+        · rintro ⟨n, hy⟩; dsimp [f] at hy; simpa using hy
+        · intro hy; rcases he ⟨y,hy⟩ with ⟨n, rfl⟩; exact ⟨n, rfl⟩
+      -- now s ∈ generateFrom gen
+      rwa [this] at GenerateMeasurable.iUnion f hf
+  · -- case (sᶜ).Countable
+    -- then sᶜ is generated in the same way, and we close under complement
+    apply GenerateMeasurable.compl
+    -- build sᶜ by a countable ⋃ of singletons
+    rcases eq_empty_or_nonempty sᶜ with rfl | ⟨x, hx⟩
+    · -- sᶜ = ∅ ⇒ s = univ but ∅ is finite so handled by .empty above
+      exact GenerateMeasurable.empty
+    · rcases exists_surjective_nat { y // y ∈ sᶜ } ⟨⟨x,hx⟩⟩ with ⟨e, he⟩
+      let g : ℕ → Set α := fun n => {(e n).val}
+      have hg : ∀ n, g n ∈ gen := by intro n; dsimp [gen]; exact Set.Finite.singleton _
+      have : (⋃ n, g n) = sᶜ := by
+        ext y; constructor
+        · rintro ⟨n, hy⟩; dsimp [g] at hy; simpa using hy
+        · intro hy; rcases he ⟨y,hy⟩ with ⟨n, rfl⟩; exact ⟨n, rfl⟩
+      rwa [this] at GenerateMeasurable.iUnion g hg
 
-lemma F_le_G : (MeasurableSpace.mkOfClosure _ rfl) ≤ G := by
-  -- F 自身が σ-加法族なので生成空間に含まれる
-  intro A hA
-  induction hA using GenerateMeasurable.induction_on with
-  | basic A h A_in => exact generateFrom.basic _ _ A_in
-  | empty => exact generateFrom.empty _
-  | compl A _ ih => exact generateFrom.compl _ ih
-  | iUnion f _ ih => exact generateFrom.iUnion _ ih
-
-theorem eq_generated : (MeasurableSpace.mkOfClosure _ rfl) = G :=
-  le_antisymm F_le_G G_le_F
+-- conclude equality
+theorem F_generatedByFinite : F_sigmaAlgebra = generateFrom gen :=
+  le_antisymm F_le_gen gen_le_F
 
 end generatedByFinite
 
