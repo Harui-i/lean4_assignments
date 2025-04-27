@@ -96,7 +96,7 @@ theorem symmdiff_associative (A B C : Set α) : (A ∆ B) ∆ C = A ∆ (B ∆ C
         ·
           -- goal: x∉B
           have h2rrc : x∉A → x∉B := by
-            simp_all?
+            simp_all
           exact h2rrc ha
         ·
           exact ha
@@ -111,10 +111,24 @@ theorem symmdiff_associative (A B C : Set α) : (A ∆ B) ∆ C = A ∆ (B ∆ C
     ·
       rewrite [symmDiff] at h1
       rewrite [symmDiff]
+      simp_all
 
+      by_cases h3: x ∈ B
+      ·
+        right
+        have h4: x ∈ C := h1.2.1 h3
+        exact And.intro h4 h3
+      ·
+        -- neg
+        left
+        have h4: x ∈ C → x ∈ B := h1.2.2
+        -- h4の対偶をとる
+        have h5: x ∉ B → x ∉ C := by
+          simp_all
+
+        exact And.intro h3 (h5 h3)
     ·
-      left
-      exact h2
-
-
+      rewrite [symmDiff] at h2
+      rewrite [symmDiff]
+      simp_all
 end report2
