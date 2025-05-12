@@ -1,5 +1,6 @@
 import Mathlib.Order.SymmDiff
 import Mathlib.Data.Set.Basic
+import Mathlib.Data.Set.Countable
 
 variable {α : Type}
 
@@ -329,7 +330,56 @@ theorem symmdiff_intersection (A B C : Set α) : (A ∆ B) ∩ C = (A ∩ C) ∆
       exact And.intro gl gr
 
 -- (e): (⋃ n, A_n)∆(⋃ n, B_n) ⊆ ⋃ n, (A_n∆B_n)
-theorem symmdiff_iUnion_subset_iUnion_symmdiff (A B : ∀ n, Set α) :
-    (⋃ n, A n) ∆ (⋃ n, B n) ⊆ ⋃ n, (A n ∆ B n) := by
-  sorry
+-- ⋃で、expected tokenと怒られる
+-- (e): (⋃ n, Aₙ) ∆ (⋃ n, Bₙ) ⊆ ⋃ n, (Aₙ ∆ Bₙ)
+
+theorem symmdiff_Union_subset {ι : Type*} (A B : ι → Set α) :
+    (⋃ i, A i) ∆ (⋃ i, B i) ⊆ ⋃ i, (A i ∆ B i) := by
+  intro x hx
+  -- hx: x ∈ (⋃ i, A i) ∆ ⋃ i, B i
+  -- Goal: x ∈ ⋃ i, A i ∆ B i
+  rewrite [symmDiff] at hx
+  rewrite [mem_iUnion]
+  -- Goal: ∃ i, x ∈ A i ∆ B i
+  rcases hx with h1 | h2
+  ·
+    -- h1: x ∈ (⋃ i, A i) \ ⋃ i, B i
+    rewrite [mem_diff] at h1
+    -- h1: x ∈ ⋃ i, A i ∧ x ∉ ⋃ i, B i
+    rewrite [mem_iUnion] at h1
+    rewrite [mem_iUnion] at h1
+    push_neg at h1
+    -- h1: (∃ i, x ∈ A i) ∧ ∀ (i : ι), x ∉ B i
+    obtain ⟨i, h1l⟩ := h1.left
+    -- h1l: x ∈ A i
+    -- x ∈ A i ∆ B iを示したい
+    -- x ∈ A i ∧ x ∉ B iを示せばいい
+    have h3: x ∉ B i := h1.right i
+    have h4: x ∈ A i ∆ B i := by
+      rewrite [symmDiff]
+      -- Goal: x ∈ A i \ B i ⊔ B i \ A i
+      left
+      rewrite [mem_diff]
+      exact And.intro h1l h3
+
+
+    -- Goal: ∃ i, x ∈ A i ∆ B i
+    -- ∃型の命題で実際に構成できた
+    exact ⟨i, h4⟩
+  ·
+    rewrite [mem_diff] at h2
+    rewrite [mem_iUnion] at h2
+    rewrite [mem_iUnion] at h2
+    push_neg at h2
+    -- h2: (∃ i, x ∈ B i) ∧ ∀  (i : ι), x ∉ A i
+    obtain ⟨i, h2l⟩ := h2.left
+    have h3: x ∈ A i ∆ B i := by
+      rewrite [symmDiff]
+      -- Goal: x ∈ A i \ B i ⊔ B i \ A i
+      right
+      rewrite [mem_diff]
+      exact And.intro h2l (h2.right i)
+    -- Goal: ∃ i, x ∈ A i ∆ B i
+    exact ⟨i, h3⟩
+
 end report2
