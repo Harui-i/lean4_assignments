@@ -131,4 +131,205 @@ theorem symmdiff_associative (A B C : Set α) : (A ∆ B) ∆ C = A ∆ (B ∆ C
       rewrite [symmDiff] at h2
       rewrite [symmDiff]
       simp_all
+
+
+
+-- (c): A∆A = ∅, A∆∅ = A
+theorem symmdiff_empty (A: Set α) : A ∆ A = ∅ := by
+  -- 集合の等式を ⊆ と ⊇ にわけて示す
+  apply Subset.antisymm
+  ·
+    -- Goal: A ∆ A ⊆ ∅
+    intro x hx  -- x ∈ A ∆ A という仮定をhxという名前でとる。
+    rewrite [symmDiff] at hx --
+    -- Goal: x  ∈ ∅
+    -- hx: x ∈ A \ A ⊔ A \ A
+    -- hxをばらす
+    rcases hx with h1 | h2
+    ·
+      -- h1: x ∈ A \ A
+      -- A \ A = ∅
+      -- diff_self: A \ A = ∅
+      rewrite [diff_self] at h1
+      exact h1
+    ·
+      -- h2もh1と全く同じ
+      rewrite [diff_self] at h2
+      exact h2
+  ·
+    -- Goal: ∅ ⊆ A ∆ A
+    intro x hx
+    rewrite [symmDiff] -- GoalをsymmDiffの定義をつかって書き換える
+    left  -- Goalのleftを証明する
+    rewrite [diff_self]
+    exact hx
+
+theorem symmdiff_empty2 (A: Set α) : A ∆ ∅ = A := by
+  -- 集合の等式を ⊆ と ⊇ にわけて示す
+  apply Subset.antisymm
+  ·
+    -- Goal: A ∆ ∅ ⊆ A
+    intro x hx
+    rewrite [symmDiff] at hx
+    -- hx: x ∈ A \ ∅ ⊔ ∅ \ A
+    rcases hx with h1 | h2
+    ·
+      -- h1: x ∈ A \ ∅
+      -- Goal: x ∈ A
+      rewrite [diff_empty] at h1
+      exact h1
+    ·
+      --h2: x ∈ ∅ \ A
+      rewrite [mem_diff] at h2
+      -- h2: x ∈ ∅ ∧ x ∉ A
+      -- Goal: x ∈ A
+      have h2l : x ∈ ∅ := h2.left
+      -- 背理法をする
+      by_contra
+      -- x ∈ ∅をつかってFalseを導きたい
+      -- Goal: False
+      rewrite [mem_empty_iff_false] at h2l
+      exact h2l
+
+  ·
+    -- Goal: A ⊆ A ∆ ∅
+    intro x hx
+    rewrite [symmDiff]
+    left
+    -- Goal: x ∈ A \ ∅
+    rewrite [diff_empty]
+    exact hx
+
+-- (d): (A∆B)∩C = (A∩C)∆(B∩C)
+
+theorem symmdiff_intersection (A B C : Set α) : (A ∆ B) ∩ C = (A ∩ C) ∆ (B ∩ C) := by
+  apply Subset.antisymm
+  ·
+    -- (A∆B)∩C ⊆ (A∩C)∆(B∩C)を示す
+    -- Goal: A ∆ B ∩ C ⊆ (A ∩ C) ∆ (B ∩ C)
+    intro x hx
+    -- hx: x ∈ A ∆ B ∩ C
+    -- Goal: x ∈ (A ∩ C) ∆ (B ∩ C)
+    rewrite [symmDiff] at hx
+    rewrite [symmDiff]
+    -- hx: x ∈ (A \ B ⊔ B \ A) ∩ C
+    have hxl : x ∈ (A \ B ⊔ B \ A) := hx.left
+    have hxr : x ∈ C := hx.right
+
+    rcases hxl with h1 | h2
+    ·
+      -- h1 : x ∈ A \ B
+      rewrite [mem_diff] at h1
+      -- h1: x ∈ A ∧ x ∉ B
+      left
+      -- Goal: x ∈ (A ∩ C) \ (B ∩ C)
+      rewrite [mem_diff]
+      -- Goal: x ∈ A ∩ C ∧ x ∉ B ∩ C
+      rewrite [mem_inter_iff]
+      rewrite [mem_inter_iff]
+      -- Goal: (x ∈ A ∧ x ∈ C) ∧ ¬(x ∈ B ∧ x ∈ C)
+      -- Goalの左側はかんたん
+      -- 右側を示す
+      have gr: ¬(x ∈ B ∧ x ∈ C) := by
+        push_neg
+        intro h3
+        have h1r: x ∉ B := h1.right
+        by_contra
+        -- h3: x ∈ B
+        -- h1r: x ∉ B
+        -- Goal: False
+        -- p ∧ ¬p ↔ Falseという定理を右から左に使う
+        rewrite [←and_not_self_iff]
+        exact And.intro h3 h1r
+
+      exact And.intro (And.intro h1.left hxr) gr
+    ·
+      -- h2: x ∈ B \ A
+      right
+      -- Goal: x ∈ (B ∩ C) \ (A ∩ C)
+      rewrite [mem_diff]
+      -- Goal: x ∈ B ∩ C ∧ x ∉ A ∩ C
+      -- Goalの左側はかんたんなので右側を示す
+      have gr: x ∉ A ∩ C := by
+        -- hxr: x ∈ C
+        -- h2 : x ∈ B \ A
+        -- Goal: x ∉ A ∩ C
+        rewrite [mem_inter_iff]
+        push_neg
+        -- Goal: x ∈ A → x ∉ C
+        intro ha
+        rewrite [mem_diff] at h2
+        have h2r : x ∉ A := h2.right
+        by_contra
+        -- ha: x ∈ A
+        -- h2r: x ∉ A
+        -- Goal: False
+        -- p ∧ ¬p ↔ Falseという定理を右から左に使う
+        rewrite [←and_not_self_iff]
+        exact And.intro ha h2r
+
+      have gl: x ∈ B ∩ C := by
+        rewrite [mem_inter_iff]
+        exact And.intro h2.left hxr
+
+      exact And.intro gl gr
+  ·
+    -- (A∩C)∆(B∩C) ⊆ (A∆B)∩Cを示す
+    intro x hx
+    rewrite [symmDiff] at hx
+    rewrite [symmDiff]
+    rcases hx with h1 | h2
+    ·
+      -- h1: x ∈ A ∩ C
+      rewrite [mem_diff] at h1
+      have gr: x ∈ C := h1.left.right
+      have gl: x ∈ (A \ B ⊔ B \ A) := by
+        left
+        rewrite [mem_diff]
+        -- h1: x ∈ A ∩ C ∧ x ∉ B ∩ C
+        have h1r: x ∉ B ∩ C := h1.right
+        rewrite [mem_inter_iff] at h1r
+        push_neg at h1r
+        have gr2: x ∉ B := by
+          -- h1r: x ∈ B → x ∉ C
+          -- h1rの対偶をとる
+          contrapose h1r
+          -- ¬ x ∉ B
+          push_neg
+          push_neg at h1r
+          exact And.intro h1r gr
+
+        have gl : x ∈ A := h1.left.left
+        exact And.intro gl gr2
+
+      exact And.intro gl gr
+    ·
+      -- h2: x ∈ (B ∩ C) \ (A ∩ C)
+      -- Goal: x ∈ (A \ B ⊔ B \ A) ∩ C
+      have gr : x ∈ C := h2.left.right
+      have gl : x ∈ (A \ B ⊔ B \ A) := by
+        right
+        rewrite [mem_diff]
+        -- h2: x ∈ B ∩ C ∧ x ∉ A ∩ C
+        have h2r: x ∉ A ∩ C := h2.right
+        rewrite [mem_inter_iff] at h2r
+        push_neg at h2r
+        have gr2: x ∉ A := by
+          -- h2r: x ∈ A → x ∉ C
+          -- h2rの対偶をとる
+          contrapose h2r
+          -- ¬ x ∉ A
+          push_neg
+          push_neg at h2r
+          exact And.intro h2r gr
+
+        have gl1 : x ∈ B := h2.left.left
+        exact And.intro gl1 gr2
+
+      exact And.intro gl gr
+
+-- (e): (⋃ n, A_n)∆(⋃ n, B_n) ⊆ ⋃ n, (A_n∆B_n)
+theorem symmdiff_iUnion_subset_iUnion_symmdiff (A B : ∀ n, Set α) :
+    (⋃ n, A n) ∆ (⋃ n, B n) ⊆ ⋃ n, (A n ∆ B n) := by
+  sorry
 end report2
