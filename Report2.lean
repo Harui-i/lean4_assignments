@@ -4,6 +4,8 @@ import Mathlib.Data.Set.Countable
 
 variable {α : Type}
 
+-- このファイルを実行(?)してCUIからチェックするには、
+-- `lake lean Report2.lean`と入力するといい
 /-
 解析学Cレポート問題 No. 2
 問1 集合 A, Bに対し、
@@ -330,6 +332,7 @@ theorem symmdiff_intersection (A B C : Set α) : (A ∆ B) ∩ C = (A ∩ C) ∆
       exact And.intro gl gr
 
 -- (e): (⋃ n, A_n)∆(⋃ n, B_n) ⊆ ⋃ n, (A_n∆B_n)
+<<<<<<< HEAD
 -- ⋃で、expected tokenと怒られる
 -- (e): (⋃ n, Aₙ) ∆ (⋃ n, Bₙ) ⊆ ⋃ n, (Aₙ ∆ Bₙ)
 
@@ -367,10 +370,54 @@ theorem symmdiff_Union_subset {ι : Type*} (A B : ι → Set α) :
     -- ∃型の命題で実際に構成できた
     exact ⟨i, h4⟩
   ·
+=======
+-- A_n, B_nを集合列とする
+theorem symmdiff_iUnion_subset_iUnion_symmdiff {A: ℕ → Set α} {B: ℕ → Set α} :
+    (⋃ n, A n) ∆ (⋃ n, B n) ⊆ ⋃ n, (A n ∆ B n) := by
+  -- Goal: (⋃ n, A n) ∆ (⋃ n, B n) ⊆ ⋃ n, (A n ∆ B n)
+  intro x hx
+  -- hx: x ∈ (⋃ n, A n) ∆ (⋃ n, B n)
+  -- Goal: x ∈ ⋃ n, (A n ∆ B n)
+  rewrite [symmDiff] at hx
+  rewrite [mem_iUnion]
+  -- hx: x ∈ ((⋃ n, A n) \ (⋃ n, B n)) ⊔ ((⋃ n, B n) \ (⋃ n, A n))
+  -- goal: ∃ i, x ∈ (A i ∆ B i)
+
+  rcases hx with h1 | h2
+  ·
+    -- h1: x ∈ (⋃ n, A n) \ (⋃ n, B n)
+    -- Goal: ∃i, x ∈ A i ∆ B i
+    rewrite [mem_diff] at h1
+    -- h1: x ∈ U n, A n ∧ x ∉ U n, B n
+    have h1l : x ∈ (⋃ n, A n) := h1.left
+    have h1r : x ∉ (⋃ n, B n) := h1.right
+    rewrite [mem_iUnion] at h1l
+    rewrite [mem_iUnion] at h1r
+    push_neg at h1r
+    obtain ⟨i, hi⟩ : ∃ i, x ∈ A i := h1l
+
+    have goal_left: ∃ i, x ∈ A i ∧ x ∉ B i := by
+      exact ⟨i, (And.intro hi (h1r i))⟩
+
+    -- Goal: ∃ i, x ∈ A i ∆ B i
+    -- ↔ ∃ i, x ∈ A i \ B i ⊔ B i \ A i
+    -- という変形ができるはずなんだけど、 rewrite [symmDiff]がなんもしてくれない
+
+    -- Instead, use the definition directly:
+    use i -- Goalが∃の形になっているので、証拠となるものを具体的に与えるtactic
+    -- https://lean-ja.github.io/lean-by-example/Tactic/Use.html
+    left
+    exact ⟨hi, h1r i⟩
+
+  ·
+    -- h2: x ∈ (⋃ n, B n) \ (⋃ n, A n)
+    -- Goal: ∃ i, x ∈ A i ∆ B i
+>>>>>>> c035339 (証明終わらせた)
     rewrite [mem_diff] at h2
     rewrite [mem_iUnion] at h2
     rewrite [mem_iUnion] at h2
     push_neg at h2
+<<<<<<< HEAD
     -- h2: (∃ i, x ∈ B i) ∧ ∀  (i : ι), x ∉ A i
     obtain ⟨i, h2l⟩ := h2.left
     have h3: x ∈ A i ∆ B i := by
@@ -381,5 +428,17 @@ theorem symmdiff_Union_subset {ι : Type*} (A B : ι → Set α) :
       exact And.intro h2l (h2.right i)
     -- Goal: ∃ i, x ∈ A i ∆ B i
     exact ⟨i, h3⟩
+=======
+    -- h2: (∃ i, x ∈ B i) ∧ x ∉ ⋃ n, A n
+    have h2l: ∃ i, x ∈ B i := h2.left
+    have h2r: ∀ (i : ℕ), x ∉ A i := h2.right
+    -- goal: ∃ i, x ∈ A i ∆ B i
+    obtain ⟨i, hi⟩ : ∃ i, x ∈ B i := h2l
+    use i
+    right
+    -- Goal: x ∈ B i \ A i
+    rewrite [mem_diff]
+    exact And.intro hi (h2r i)
+>>>>>>> c035339 (証明終わらせた)
 
 end report2
