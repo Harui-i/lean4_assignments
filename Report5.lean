@@ -1,6 +1,7 @@
 import Mathlib.MeasureTheory.MeasurableSpace.Defs -- 可測空間,可測関数の定義
 import Mathlib.MeasureTheory.OuterMeasure.Defs -- 外測度の定義
 import Mathlib.MeasureTheory.Measure.MeasureSpaceDef --測度の定義 (コレをimportしたら死ぬほどbuildに時間がかかるようになったw)
+import Mathlib.Data.Nat.Pairing -- N × N → Nの全単射を作るために必要
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.ENNReal.Basic
 import Mathlib.Topology.Basic
@@ -71,7 +72,6 @@ def prop_b (α: Type*) (F₀ : Set (Set α)) (μ₀ : Set α → ENNReal) (A : S
   ∀ x ∈ A, {i | x ∈ E i}.Infinite
 
 
-
 -- (a) → (b)
 lemma a_to_b (α : Type*) (F₀ : Set (Set α)) (hF₀: IsFiniteAlgebra α F₀)  (μ₀ : Set α → ENNReal) (A : Set α)
   (h : prop_a α F₀ μ₀ A) : prop_b α F₀ μ₀ A := by
@@ -120,10 +120,73 @@ lemma a_to_b (α : Type*) (F₀ : Set (Set α)) (hF₀: IsFiniteAlgebra α F₀)
     simp_all only [one_div, inv_pos, Nat.ofNat_pos, pow_pos]
 
 
-  let E_n := fun (n : ℕ)  => E ((1 / 2^n) : ℝ) (two_pow_n_inv_of_pos n) n
+  --let E_n := fun (n : ℕ)  => E ((1 / 2^n) : ℝ) (two_pow_n_inv_of_pos n) n
+  -- Σ' m, μ₀ (E_n m) < 1 / 2^n となるような構成ができるのでそれを使って証明するアプローチ
   -- E_n は ℕ → Set α
   -- let G := ⋃ n, E_n n
   -- こう定義しただけじゃGは列じゃない...
   -- N × N → Nの全単射は結構簡単に作れるから、その逆写像(gとする)を使って、
   -- G_n := E_n (g n).1 (g n).2 みたいにすると, ℕ → Set αの列になる
-  sorry
+  -- あ、MathlibのNat.paringってのを使うといいらしい
+
+  -- E_all_seq iについて考える
+  -- n := (unpair i).1
+  -- m := (unpair i).2
+  -- とすると、 E_all_seq i := E_n n m
+  let E_all_seq : ℕ → Set α := fun i =>
+    E ((1 / 2^(Nat.unpair i).1) : ℝ) (two_pow_n_inv_of_pos (Nat.unpair i).1) (Nat.unpair i).2
+
+  use E_all_seq
+  constructor
+  ·
+    -- goal: ∀ (i : ℕ), E_all_seq i ∈ F₀
+    intro i
+    -- E_all_seq iを展開
+    simp_all only [E_all_seq] -- solved
+  ·
+    constructor
+    -- goal: A ⊆ ⋃ i, E_all_seq i
+    intro x hx
+    simp_all only [E_all_seq]
+    rewrite [Set.mem_iUnion]
+    -- goal: ∃ i, x ∈ E (1 / 2^(unpair i).1) (two_pow_n_inv_of_pos (unpair i).1 : 0 < 1 / 2^(unpair i).1) (unpair i).2
+    -- たぶん hEを使えばいける
+    -- hE: ∀ (i : ℕ), E i ∈ F₀ ∧ A ⊆ ⋃ i, E i ∧ (∑' i, μ₀ (E i)) < ENNReal.ofReal ε
+    -- ここで、nはどれを使ってもいいからn=1を使う
+    -- で、E_1 は E_{1,1}, E_{1,2}, みたいな列になっていて、
+    -- E_{1, m}であってx ∈ E_{1, m}となるmがある。
+    -- そんな(1,m)からunpairしてiを作ればいい。
+
+    have hE1_contains_x : ∃ m : ℕ, x ∈ E (1 / 2^1) (two_pow_n_inv_of_pos 1) m := by
+      -- goal: ∃ m, x ∈ E (1 / 2^1) (two_pow_n_inv_of_pos 1) m
+      have hhoge := (hE (1 / 2^1) (two_pow_n_inv_of_pos 1)).right.left
+      -- hhoge: A ⊆ ⋃ i, E (1 / 2^1) (two_pow_n_inv_of_pos 1) i
+      -- これを ∀ y ∈ A, ...みたいに言い換えたい
+      rewrite [Set.subset_def] at hhoge
+      -- hhoge: ∀ x ∈ A, x ∈ ⋃ i, E (1 / 2^1) (two_pow_n_inv_of_pos 1) i
+      have hhoge2 := hhoge x hx
+      rewrite [Set.mem_iUnion] at hhoge2
+      obtain ⟨m, hm⟩ := hhoge2
+      use m
+
+    obtain ⟨m, hm⟩ := hE1_contains_x
+    use Nat.pair 1 m
+
+    rewrite [Nat.unpair_pair]
+    -- goal: x ∈ E (1 / 2 ^ (1, m).1) two_pow_n_inv_of_pos (1, m).1 : 0 < 1 / 2 ^ (1, m).1 (1, m).2
+    -- (1,m).1 = 1
+    -- (1,m).2 = mを使って書き換える
+    have pair_1_m_first : (1, m).1 = 1 := by
+      rfl
+    have pair_1_m_second : (1, m).2 = m := by
+      rfl
+
+    rw [pair_1_m_first]
+    rw [pair_1_m_second]
+    -- goal: x ∈ E (1 / 2 ^ 1) (two_pow_n_inv_of_pos 1) m
+    -- これで hm : x ∈ E (1 / 2^1) (two_pow_n_inv_of_pos 1) m と一致する
+    exact hm
+
+    -- goal: Σ' (i : ℕ) μ₀ (E_all_seq i) < ⊤ ∧ ∀ x ∈ A, {i | x ∈ E_all_seq i}.Infinite
+
+    sorry
