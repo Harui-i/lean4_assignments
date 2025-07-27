@@ -188,5 +188,21 @@ lemma a_to_b (α : Type*) (F₀ : Set (Set α)) (hF₀: IsFiniteAlgebra α F₀)
     exact hm
 
     -- goal: Σ' (i : ℕ) μ₀ (E_all_seq i) < ⊤ ∧ ∀ x ∈ A, {i | x ∈ E_all_seq i}.Infinite
-
-    sorry
+    constructor
+    ·
+      -- goal: Σ' (i : ℕ) μ₀ (E_all_seq i) < ⊤
+      -- E_all_seq i の和だけど、和の順序を変えて Σ' (n : ℕ) Σ' m μ₀ (E n m) にしてもよいことを示せたら、
+      -- Σ' m μ₀ (E n m) < 1 / 2^n であることがわかるので、いろいろやれば示せる
+      -- でも可算無限個の和なのに順序を変えていいのか?
+      -- 非負だからええか
+      sorry
+    ·
+      -- goal: ∀ x ∈ A, {i | x ∈ E_all_seq i}.Infinite
+      intro x hx
+      -- E_all_seq iを展開
+      simp_all only [E_all_seq]
+      -- てか任意のnについて、∃ m s.t. E_{n, m} ∋ xみたいな感じのことが示せる。
+      -- でnは可算無限個あるので、示せる
+      -- TODO: コレを示す
+      -- {i | x ∈ E (1 / 2)}
+      sorry
