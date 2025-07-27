@@ -201,8 +201,134 @@ lemma a_to_b (α : Type*) (F₀ : Set (Set α)) (hF₀: IsFiniteAlgebra α F₀)
       intro x hx
       -- E_all_seq iを展開
       simp_all only [E_all_seq]
-      -- てか任意のnについて、∃ m s.t. E_{n, m} ∋ xみたいな感じのことが示せる。
-      -- でnは可算無限個あるので、示せる
-      -- TODO: コレを示す
-      -- {i | x ∈ E (1 / 2)}
-      sorry
+
+      -- 任意のnについて、∃ m s.t. x ∈ E((1/2^n), m) であることを示す
+      have forall_n_exists_m : ∀ n : ℕ, ∃ m : ℕ, x ∈ E ((1 / 2^n) : ℝ) (two_pow_n_inv_of_pos n) m := by
+        intro n
+        have subset_property := (hE ((1 / 2^n) : ℝ) (two_pow_n_inv_of_pos n)).right.left
+        rw [Set.subset_def] at subset_property
+        have x_in_union := subset_property x hx
+        rw [Set.mem_iUnion] at x_in_union
+        exact x_in_union
+
+      -- 各nに対してmを選ぶ
+      choose m_of_n hm_of_n using forall_n_exists_m
+
+      -- 任意のnについて、 Nat.pair n (m_of_n n) がこの集合に含まれることを示す
+      have mem_for_all_n : ∀ n : ℕ, Nat.pair n (m_of_n n) ∈ {i | x ∈ E ((1 / 2^(Nat.unpair i).1) : ℝ) (two_pow_n_inv_of_pos (Nat.unpair i).1) (Nat.unpair i).2} := by
+        intro n
+        simp only [Set.mem_setOf]
+        -- Nat.unpair (Nat.pair n (m_of_n n)) = (n, m_of_n n) を使う
+        conv_lhs => rw [Nat.unpair_pair]
+        simp only
+        exact hm_of_n n
+
+      -- 無限性を示すために、矛盾を導く
+      by_contra h_finite
+      push_neg at h_finite
+      -- h_finite: Finite {i | x ∈ E (1 / 2 ^ (Nat.unpair i).1) ⋯ (Nat.unpair i).2}
+
+      -- この有限集合をSとする
+      let S := {i | x ∈ E ((1 / 2^(Nat.unpair i).1) : ℝ) (two_pow_n_inv_of_pos (Nat.unpair i).1) (Nat.unpair i).2}
+
+      -- すべてのnについて Nat.pair n (m_of_n n) ∈ S
+      have all_pairs_in_S : ∀ n : ℕ, Nat.pair n (m_of_n n) ∈ S := mem_for_all_n
+
+      -- f: ℕ → ℕ を f(n) = Nat.pair n (m_of_n n) として定義
+      let f : ℕ → ℕ := fun n => Nat.pair n (m_of_n n)
+
+      -- fは単射
+      have f_inj : Function.Injective f := by
+        intro n1 n2 h_eq
+        simp only [f] at h_eq
+        have : (n1, m_of_n n1) = (n2, m_of_n n2) := by
+          rw [← Nat.unpair_pair n1 (m_of_n n1), ← Nat.unpair_pair n2 (m_of_n n2), h_eq]
+        exact (Prod.mk_inj.mp this).1
+
+      -- Set.range f ⊆ S
+      have range_subset : Set.range f ⊆ S := by
+        intro i hi
+        obtain ⟨n, hn⟩ := hi
+        rw [← hn]
+        simp only [f]
+        exact all_pairs_in_S n
+
+      -- S は有限なので Set.range f も有限
+      have S_finite : Set.Finite S := by
+        rwa [← Set.not_infinite]
+      have range_finite : Set.Finite (Set.range f) := Set.Finite.subset S_finite range_subset
+
+      -- しかし f が単射で定義域が無限なので、Set.range f は無限のはず
+      -- これを示すために、任意の有限集合がSet.range fを覆わないことを示す
+
+      -- ℕが無限集合であることを利用
+      have nat_infinite : Set.Infinite (Set.univ : Set ℕ) := Set.infinite_univ
+
+      -- fが単射なので、Set.range f も無限
+      have range_infinite : Set.Infinite (Set.range f) := by
+        -- Set.range f が有限だと仮定して矛盾を導く
+        by_contra h_finite_range
+
+        -- h_finite_range : ¬(Set.range f).Infinite
+        -- これを Set.Finite に変換
+        rw [Set.not_infinite] at h_finite_range
+        -- h_finite_range : (Set.range f).Finite
+
+        -- fが単射なので、ℕ から Set.range f への単射が存在する
+        -- Set.range f を有限集合として扱える
+        have range_fintype : Fintype (Set.range f) := Set.Finite.fintype h_finite_range
+
+        -- ℕ から Set.range f への写像 g を定義
+        let g : ℕ → Set.range f := fun n => ⟨f n, Set.mem_range_self n⟩
+
+        -- g は単射
+        have g_inj : Function.Injective g := by
+          intro n1 n2 h_eq
+          have : f n1 = f n2 := by
+            have h_val : (g n1).val = (g n2).val := by
+              rw [h_eq]
+            simp only [g] at h_val
+            exact h_val
+          exact f_inj this
+
+        -- g は全射でもある
+        have g_surj : Function.Surjective g := by
+          intro ⟨y, hy⟩
+          obtain ⟨n, hn⟩ := hy
+          use n
+          simp only [g]
+          ext
+          exact hn
+
+        -- g が単射全射なので、ℕ と Set.range f の間に濃度の対応がある
+        -- しかし、Set.range f は有限で ℕ は無限なので矛盾
+
+        -- 具体的に: 任意の自然数 k に対して、0, 1, ..., k-1 を g で移すと
+        -- k 個の異なる要素が Set.range f に含まれる
+        -- しかし、Set.range f は有限なので、ある上限がある
+
+        -- Fintype.card を使った議論
+        have card_le : ∀ n : ℕ, n ≤ Fintype.card (Set.range f) := by
+          intro n
+          -- {0, 1, ..., n-1} を g で移した像のサイズは n
+          -- これが Set.range f に含まれるので、n ≤ |Set.range f|
+          let s := Finset.range n
+          have h1 : s.card = n := Finset.card_range n
+          have h2 : (s.image (fun i => g i)).card = s.card := by
+            rw [Finset.card_image_of_injective]
+            exact g_inj
+          have h3 : s.image (fun i => g i) ⊆ Finset.univ := Finset.subset_univ _
+          rw [← h1, ← h2]
+          exact Finset.card_le_card h3
+
+        -- しかし、任意に大きな n を取れるので矛盾
+        have : ∃ n : ℕ, n > Fintype.card (Set.range f) := by
+          use Fintype.card (Set.range f) + 1
+          norm_num
+
+        obtain ⟨n, hn⟩ := this
+        have : n ≤ Fintype.card (Set.range f) := card_le n
+        linarith
+
+      -- 矛盾: range_finite と range_infinite
+      exact range_infinite range_finite
