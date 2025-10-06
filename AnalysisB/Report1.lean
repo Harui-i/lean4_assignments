@@ -3,7 +3,8 @@ import Mathlib.Analysis.Calculus.ContDiff.Basic
 import Mathlib.Analysis.Calculus.ContDiff.Defs
 import Mathlib.Topology.MetricSpace.ProperSpace
 import Mathlib.Analysis.Calculus.MeanValue -- 平均値の定理
-
+import Mathlib.Algebra.Order.Group.Abs
+import Mathlib.Analysis.Normed.Module.Convex -- convex_closedBall
 open Set Metric
 
 theorem C1_implies_LocallyLipschitz
@@ -49,6 +50,10 @@ theorem C1_implies_LocallyLipschitz
       -- Mathlib.Topology.MetricSpace.ProperSpace で証明されている
       exact isCompact_closedBall x 1
 
+    have h_t_is_convex : Convex ℝ t := by
+      exact convex_closedBall x 1
+
+
      -- コンパクト集合 t 上の連続関数 ‖deriv f y‖ の値の集合を s とおく
     let s := (fun y => ‖deriv f y‖) '' t
     -- その集合の上限 (supremum) を K とする。
@@ -69,41 +74,47 @@ theorem C1_implies_LocallyLipschitz
     -- Goal: ∀ {x : ℝ}, x ∈ t → ∀ {y : ℝ}, y ∈ t → dist (f x) (f y) ≤ ↑K_nn * dist x y
     intro x1 hx1
     intro y1 hy1
+
+    let x2 := min x1 y1
+    let y2 := max x1 y1
+
     -- Goal: edist (f x1) (f y1) ≤ ↑K_nn * edist x1 y1
-    -- 平均値の定理はnorm_image_sub_le_of_norm_deriv_leみたいな名前である
-    /-
-    -- ↓ Mathlib の定理
-    /-- The mean value theorem on a convex set in dimension 1: if the derivative of a function is
-      bounded by `C`, then the function is `C`-Lipschitz. Version with `HasDerivWithinAt`. -/
-      theorem norm_image_sub_le_of_norm_hasDerivWithin_le {C : ℝ}
-          (hf : ∀ x ∈ s, HasDerivWithinAt f (f' x) s x) (bound : ∀ x ∈ s, ‖f' x‖ ≤ C) (hs : Convex ℝ s)
-          (xs : x ∈ s) (ys : y ∈ s) : ‖f y - f x‖ ≤ C * ‖y - x‖ :=
-        Convex.norm_image_sub_le_of_norm_hasFDerivWithin_le (fun x hx => (hf x hx).hasFDerivWithinAt)
-          (fun x hx => le_trans (by simp) (bound x hx)) hs xs ys
-    -/
-     -- fが区間 [x1,y1] で微分可能であることを示す。C¹級なので当然成り立つ。
-    have h_diff_on : DifferentiableOn ℝ f (Icc x1 y1) :=
+    -- 平均値の定理はMathlibにある
+     -- fが区間 [x2,y2] で微分可能であることを示す。C¹級なので当然成り立つ。
+    have h_diff_on : DifferentiableOn ℝ f (Icc x2 y2) :=
       (ContDiff.differentiable h_c1 (by norm_num)).differentiableOn
 
-    -- 区間 [x1,y1] 内の任意の点 c で ‖deriv f c‖ ≤ K が成り立つことを示す
-    have h_norm_le_K : ∀ c ∈ Icc x1 y1, ‖deriv f c‖ ≤ K := by
-      intro c hc
-
-      -- x1, y1 は t に含まれ、t は凸集合なので、c も t に含まれる。
-      have hc_in_t : c ∈ t := by
-        simp [Icc] at hc
-        -- hc : x1 ≤ c ∧ c ≤ y1
-        -- tがClosedBallなので明らかに c ∈ tだろうけど
-        -- Goal: c ∈ t
-        simp [t]
-        sorry
-      -- K は t 上での上限だったので、‖deriv f c‖ ≤ K が成立する。
-      -- ‖deriv f c‖ ∈ s であることを示す
-      have h_norm_in_s : ‖deriv f c‖ ∈ s := mem_image_of_mem _ hc_in_t
-      -- 集合の元は上限以下である
-      exact le_csSup (h_t_is_compact.isBounded_image h_deriv_cont.norm) h_norm_in_s -- error
-
     -- 平均値の定理（の不等式版）を適用して、Goalを直接証明する
-    -- dist a b は ‖a - b‖ と定義されているので、この定理がそのまま使える
-    exact norm_image_sub_le_of_norm_deriv_le h_diff_on h_norm_le_K ha hb
+    /-
+    /-- The mean value theorem on a convex set in dimension 1: if the derivative of a function within
+    this set is bounded by `C`, then the function is `C`-Lipschitz. Version with `derivWithin` -/
+    theorem norm_image_sub_le_of_norm_derivWithin_le {C : ℝ} (hf : DifferentiableOn 𝕜 f s)
+        (bound : ∀ x ∈ s, ‖derivWithin f s x‖ ≤ C) (hs : Convex ℝ s) (xs : x ∈ s) (ys : y ∈ s) :
+        ‖f y - f x‖ ≤ C * ‖y - x‖ :=
+      hs.norm_image_sub_le_of_norm_hasDerivWithin_le (fun x hx => (hf x hx).hasDerivWithinAt) bound xs
+        ys
+    -/
+    -- 上の定理の文字 : このコードでの文字
+    -- 𝕂 : ℝ
+    -- f : f
+    -- s : Icc x1 y1
+    -- C : K
+
+    have h_bound : ∀ z ∈ (Icc x2 y2), ‖derivWithin f (Icc x2 y2) z‖ ≤ K := by
+      sorry
+
+    have h_convex_set : Convex ℝ (Icc x2 y2) := by
+      exact convex_Icc x2 y2
+
+    have h_xs: x2 ∈ (Icc x2 y2) := by
+      simp_all
+      simp [x2]
+      simp [y2]
+
+    have h_ys: y2 ∈ (Icc x2 y2) := by
+      simp [x2, y2]
+
+    have h_final : ‖f y2 - f x2‖ ≤ K * ‖y2 - x2‖ := by
+      exact Convex.norm_image_sub_le_of_norm_derivWithin_le h_diff_on h_bound h_convex_set h_xs h_ys
+
     sorry
