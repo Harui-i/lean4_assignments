@@ -5,6 +5,8 @@ import Mathlib.Data.Nat.Pairing -- N × N → Nの全単射を作るために必
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.ENNReal.Basic
 import Mathlib.Topology.Basic
+import Mathlib.Analysis.Normed.Field.Basic -- 等比級数に必要
+import Mathlib.Analysis.SpecificLimits.Basic
 
 open MeasureTheory
 
@@ -195,7 +197,106 @@ lemma a_to_b (α : Type*) (F₀ : Set (Set α)) (hF₀: IsFiniteAlgebra α F₀)
       -- Σ' m μ₀ (E n m) < 1 / 2^n であることがわかるので、いろいろやれば示せる
       -- でも可算無限個の和なのに順序を変えていいのか?
       -- 非負だからええか
-      sorry
+      -- まず補題として、Σ' i , μ₀ (E_all_seq i) = Σ' n, Σ' m μ₀ (E n m) であることを示す
+      -- E: (ε : ℝ) → 0 < ε → ℕ → Set α
+      -- E_all_seq i = E (1/2^(unpair i).1) (proof) (unpair i).2
+      -- なので、この和をΣ' n, Σ' m μ₀ (E (1/2^n) (proof) m) に変形したい
+
+      -- 各nに対する1/2^nが正であることを定義
+      have h1_div_2_pow_n_gt_0 : ∀ n : ℕ, (0 : ℝ) < (1 : ℝ) / (2^n : ℝ) := by
+        intro n
+        simp_all only [one_div, inv_pos, Nat.ofNat_pos, pow_pos]
+
+
+      have h_nmsum_finite: ∑' (n : ℕ), ∑' (m : ℕ), μ₀ (E ((1 / 2^n) : ℝ) (h1_div_2_pow_n_gt_0 n) m) < ⊤ := by
+        -- 各nについて ∑' m, μ₀ (E (1/2^n) _ m) < ENNReal.ofReal (1/2^n) が成り立つ
+        -- これは hE の性質から得られる
+        have h_bound_n : ∀ n : ℕ, ∑' (m : ℕ), μ₀ (E ((1 / 2^n) : ℝ) (h1_div_2_pow_n_gt_0 n) m) < ENNReal.ofReal (1 / 2^n) := by
+          intro n
+          exact (hE ((1 / 2^n) : ℝ) (h1_div_2_pow_n_gt_0 n)).right.right
+
+        -- ∑' n, ∑' m, μ₀ (E (1/2^n) _ m) ≤ ∑' n, ENNReal.ofReal (1/2^n)
+        have h_bound_total : ∑' (n : ℕ), ∑' (m : ℕ), μ₀ (E ((1 / 2^n) : ℝ) (h1_div_2_pow_n_gt_0 n) m) ≤
+                            ∑' (n : ℕ), ENNReal.ofReal (1 / 2^n) := by
+          apply ENNReal.tsum_le_tsum
+          intro n
+          exact le_of_lt (h_bound_n n)
+
+        -- ∑' n, ENNReal.ofReal (1/2^n) は有限であることを示す
+        have h_finite_sum : ∑' (n : ℕ), ENNReal.ofReal (1 / 2^n) < ⊤ := by
+          -- 単純な上界を使った証明
+          -- 各項について 1/2^n ≤ 1/2^0 = 1 for n ≥ 0
+          -- さらに、n ≥ 1 では 1/2^n ≤ 1/2
+          -- したがって ∑' n, ENNReal.ofReal (1/2^n) ≤ ENNReal.ofReal 1 + ∑' n ≥ 1, ENNReal.ofReal (1/2)
+          -- しかし後者は発散するので、この方法は良くない
+
+          -- より良いアプローチ: 比較判定法
+          -- 十分大きなnに対して、1/2^n ≤ (2/3)^n など使えるが、複雑
+
+          -- ここでは、実際のLean証明では等比級数の収束定理を使うべきだが、
+          -- 今は構造を示すことが目的なので、基本的な不等式で上界を与える
+
+          -- n = 0: 1/2^0 = 1
+          -- n = 1: 1/2^1 = 1/2
+          -- n = 2: 1/2^2 = 1/4
+          -- ...
+          -- 明らかに ∑_{n=0}^∞ 1/2^n = 2 < ∞
+
+          -- ENNReal での対応する和も有限になる
+          -- 厳密な証明には等比級数の定理が必要だが、ここでは省略
+          have : ∑' (n : ℕ), ENNReal.ofReal (1 / 2^n) ≤ ENNReal.ofReal 2 := by
+            -- この不等式は等比級数の理論から従う
+            -- 実際の証明では Mathlib の等比級数定理を使用する
+            -- mathlib4/Mathlib/Analysis/SpecificLimits
+            -- theorem tsum_geometric_two : (∑' n : ℕ, ((1 : ℝ) / 2) ^ n) = 2
+
+            -- まず 1/2^n = (1/2)^n であることを示す
+            have h_eq : ∀ n : ℕ, (1 / 2^n : ℝ) = ((1 : ℝ) / 2) ^ n := by
+              intro n
+              simp only [one_div, inv_pow]
+
+            -- ∑' n, ENNReal.ofReal (1/2^n) = ∑' n, ENNReal.ofReal ((1/2)^n)
+            have h_tsum_eq : ∑' (n : ℕ), ENNReal.ofReal (1 / 2^n) = ∑' (n : ℕ), ENNReal.ofReal (((1 : ℝ) / 2) ^ n) := by
+              congr 1
+              ext n
+              rw [h_eq]
+
+            rw [h_tsum_eq]
+
+            -- ENNReal.ofReal_tsum_of_nonneg を使って、
+            -- ∑' n, ENNReal.ofReal ((1/2)^n) = ENNReal.ofReal (∑' n, (1/2)^n)
+            have h_ofReal_tsum : ∑' (n : ℕ), ENNReal.ofReal (((1 : ℝ) / 2) ^ n) = ENNReal.ofReal (∑' (n : ℕ), ((1 : ℝ) / 2) ^ n) := by
+              rw [← ENNReal.ofReal_tsum_of_nonneg]
+              · intro n
+                apply pow_nonneg
+                norm_num
+              · exact summable_geometric_two
+
+            rw [h_ofReal_tsum]
+
+            -- tsum_geometric_two : (∑' n : ℕ, ((1 : ℝ) / 2) ^ n) = 2 を使う
+            rw [tsum_geometric_two]
+
+          have h_2_lt_top : ENNReal.ofReal 2 < ⊤ := ENNReal.ofReal_lt_top
+          exact lt_of_le_of_lt this h_2_lt_top
+
+        exact lt_of_le_of_lt h_bound_total h_finite_sum
+
+      have h_sum_eq : Σ' (i : ℕ), μ₀ (E_all_seq i) =
+        ∑' (n : ℕ), ∑' (m : ℕ), μ₀ (E ((1 / 2^n) : ℝ) (h1_div_2_pow_n_gt_0 n) m) := by
+
+        -- μ₀の定義から、非負。
+        -- h_nmsum_infiniteから、右辺は有限
+        -- 絶対収束する級数は順序を変えても値は変わらないので, h_sum_eqが成り立つ
+        sorry
+
+
+      -- goal: Σ' (i : ℕ), μ₀ (E_all_seq i) < ⊤
+      --rw [h_sum_eq] --tactic 'rewrite' failed, equality or iff proof expected (i : ℕ) ×' μ₀ (E_all_seq i) = ∑' (n : ℕ) (m : ℕ), μ₀ (E (1 / 2 ^ n) ⋯ m)
+      -- なんでh_sum_eqを使って書き換えられない???
+
+
+
     ·
       -- goal: ∀ x ∈ A, {i | x ∈ E_all_seq i}.Infinite
       intro x hx
