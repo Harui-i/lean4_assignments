@@ -81,8 +81,10 @@ theorem C1_implies_LocallyLipschitz
     -- Goal: edist (f x1) (f y1) ≤ ↑K_nn * edist x1 y1
     -- 平均値の定理はMathlibにある
      -- fが区間 [x2,y2] で微分可能であることを示す。C¹級なので当然成り立つ。
-    have h_diff_on : DifferentiableOn ℝ f (Icc x2 y2) :=
-      (ContDiff.differentiable h_c1 (by norm_num)).differentiableOn
+    -- We will use differentiability everywhere from C¹
+    have h_diff_at : ∀ z ∈ Icc x2 y2, DifferentiableAt ℝ f z := by
+      intro z hz
+      exact (ContDiff.differentiable h_c1 (by norm_num)).differentiableAt
 
     -- 平均値の定理（の不等式版）を適用して、Goalを直接証明する
     /-
@@ -100,8 +102,44 @@ theorem C1_implies_LocallyLipschitz
     -- s : Icc x1 y1
     -- C : K
 
-    have h_bound : ∀ z ∈ (Icc x2 y2), ‖derivWithin f (Icc x2 y2) z‖ ≤ K := by
-      sorry
+    -- First, show the interval lies inside the closed ball t, since t is convex and contains x1, y1.
+    have h_Icc_subset_t : Icc x2 y2 ⊆ t := by
+      have hseg : segment ℝ x1 y1 ⊆ t := h_t_is_convex.segment_subset hx1 hy1
+      by_cases h : x1 ≤ y1
+      · -- then x2 = x1, y2 = y1
+        have hseg_eq : segment ℝ x1 y1 = Icc x2 y2 := by
+          simp [segment_eq_Icc, x2, y2, h]
+        simpa [hseg_eq]
+          using hseg
+      · -- y1 ≤ x1
+        have h' : y1 ≤ x1 := le_of_lt (lt_of_not_ge h)
+        have hx2 : x2 = y1 := by simp [x2, h']
+        have hy2 : y2 = x1 := by simp [y2, h']
+        have hseg_eq : segment ℝ x1 y1 = Icc x2 y2 := by
+          -- use symmetry of segment
+          have : segment ℝ y1 x1 = Icc x2 y2 := by
+            simp [segment_eq_Icc, hx2, hy2, h']
+          simpa [segment_symm] using this
+        simpa [hseg_eq] using hseg
+
+    -- Show the image s is nonempty and bounded above, as image of a compact set by a continuous function
+    have hx_mem_t : x ∈ t := by
+      -- x is the center of the closed ball of radius 1
+      simp [t, Metric.mem_closedBall, dist_self]
+    have hs_nonempty : s.Nonempty := ⟨‖deriv f x‖, ⟨x, hx_mem_t, rfl⟩⟩
+    have hcont_deriv : Continuous fun y => deriv f y :=
+      (h_c1.continuous_deriv (le_rfl))
+    have hcont_norm : Continuous fun y => ‖deriv f y‖ := hcont_deriv.norm
+    have hcompact_s : IsCompact s :=
+      (h_t_is_compact.image hcont_norm)
+    have hbdd : BddAbove s := hcompact_s.bddAbove
+
+    -- Now bound the derivative on the interval by K = sSup s
+    have h_bound' : ∀ z ∈ (Icc x2 y2), ‖deriv f z‖ ≤ K := by
+      intro z hz
+      have hz_t : z ∈ t := h_Icc_subset_t hz
+      have hz_in_s : ‖deriv f z‖ ∈ s := ⟨z, hz_t, rfl⟩
+      exact le_csSup hbdd hz_in_s
 
     have h_convex_set : Convex ℝ (Icc x2 y2) := by
       exact convex_Icc x2 y2
@@ -115,6 +153,36 @@ theorem C1_implies_LocallyLipschitz
       simp [x2, y2]
 
     have h_final : ‖f y2 - f x2‖ ≤ K * ‖y2 - x2‖ := by
-      exact Convex.norm_image_sub_le_of_norm_derivWithin_le h_diff_on h_bound h_convex_set h_xs h_ys
+      -- Mean value inequality on a convex set using the bound on the ordinary derivative
+      exact h_convex_set.norm_image_sub_le_of_norm_deriv_le h_diff_at h_bound' h_xs h_ys
 
-    sorry
+
+    -- Finish by rewriting to norms using `dist_eq_norm` and using the mean value inequality above.
+    have hxy_norm : ‖f x1 - f y1‖ ≤ K * ‖x1 - y1‖ := by
+      by_cases hle : x1 ≤ y1
+      · have hx2 : x2 = x1 := by simp [x2, hle]
+        have hy2 : y2 = y1 := by simp [y2, hle]
+        -- h_final currently reads with arguments (y2, x2)
+        -- Adjust order on the left using `norm_sub_rev`.
+        simpa [hx2, hy2, norm_sub_rev] using h_final
+      · have hle' : y1 ≤ x1 := le_of_lt (lt_of_not_ge hle)
+        have hx2 : x2 = y1 := by simp [x2, hle']
+        have hy2 : y2 = x1 := by simp [y2, hle']
+        simpa [hx2, hy2] using h_final
+    -- Finish: turn norms into distances, then to extended distances.
+    have hxy_dist : dist (f x1) (f y1) ≤ K * dist x1 y1 := by
+      simpa [dist_eq_norm] using hxy_norm
+    have hxy_edist : ENNReal.ofReal (dist (f x1) (f y1))
+        ≤ ENNReal.ofReal (K * dist x1 y1) := ENNReal.ofReal_le_ofReal hxy_dist
+    -- Rewrite the right-hand side to match the goal
+
+
+    have hxy_edist2 : PseudoMetricSpace.edist (f x1) (f y1)
+        ≤ ↑K_nn * PseudoMetricSpace.edist x1 y1 := by
+        simp [PseudoMetricSpace.edist]
+        -- goal: ↑⟨|f x1 - f y1|⟩ ≤ ↑K_nn * ↑⟨|x1 - y1|⟩
+
+
+        sorry
+
+    simpa [edist, ENNReal.ofReal_mul, dist_eq_norm, K_nn] using hxy_edist2
